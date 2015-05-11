@@ -243,6 +243,9 @@ ssize_t Connection::send() {
     m_buffer_writer->reset();
     return -1;
   } else {
+    if (nSent == 0) {
+      log_warn("sendmsg to %s return 0", name());
+    }
     m_buffer_writer->commitRead(nSent);
   }
 
