@@ -1,6 +1,14 @@
 #include "Utility.h"
 #include "Common.h"
 
+#include <ctime>
+#ifndef __MACH__
+#include <unistd.h>
+#else
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 namespace douban {
 namespace mc {
 namespace utility {
@@ -62,6 +70,23 @@ void fprintBuffer(std::FILE* file, const char *data_buffer_, const unsigned int 
       fprintf(file, "\n");
     }
   }
+}
+
+
+double getCPUTime() {
+  timespec ts;
+#ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+  clock_serv_t cclock;
+  mach_timespec_t mts;
+  host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+  clock_get_time(cclock, &mts);
+  mach_port_deallocate(mach_task_self(), cclock);
+  ts.tv_sec = mts.tv_sec;
+  ts.tv_nsec = mts.tv_nsec;
+#else
+  clock_gettime(CLOCK_REALTIME, &ts);
+#endif
+  return static_cast<double>(ts.tv_sec) + 1e-9 * static_cast<double>(ts.tv_nsec);
 }
 
 

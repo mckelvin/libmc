@@ -22,6 +22,8 @@ inline int int64ToCharArray(int64_t n, char s[]) {
 bool isValidKey(const char* key, const size_t keylen);
 void fprintBuffer(std::FILE* file, const char *data_buffer_, const unsigned int length);
 
+double getCPUTime();
+
 } // namespace utility
 } // namespace mc
 } // namespace douban

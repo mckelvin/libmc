@@ -12,6 +12,10 @@ foreach(SRC ${TEST_SRC_FILES})
         pthread
         mc
         )
+
+    if(NOT APPLE)
+        target_link_libraries(${test_name} rt)
+    endif(NOT APPLE)
     add_test(${test_name} ${test_name})
 endforeach(SRC)
 

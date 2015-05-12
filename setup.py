@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import platform
 from glob import glob
 from setuptools import setup, Extension
 from setuptools.command.test import test as TestCommand
@@ -15,6 +16,7 @@ if 'setuptools.extension' in sys.modules:
 sources = (glob("src/*.cpp") + glob("src/hashkit/*.cpp") +
            ["libmc/_client.pyx"])
 include_dirs = ["include"]
+libraries = ["rt"] if platform.system() == 'Linux' else []
 
 COMPILER_FLAGS = ["-fno-strict-aliasing", "-fno-exceptions", "-fno-rtti",
                   "-Wall", "-DMC_USE_SMALL_VECTOR", "-O3", "-DNDEBUG"]
@@ -74,7 +76,8 @@ setup(
     cmdclass={"test": PyTest},
     ext_modules=[
         Extension("libmc._client", sources, include_dirs=include_dirs,
-                  language="c++", extra_compile_args=COMPILER_FLAGS)
+                  language="c++", extra_compile_args=COMPILER_FLAGS,
+                  libraries=libraries)
     ],
     tests_require=[
         "pytest",

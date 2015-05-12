@@ -391,7 +391,12 @@ err_code_t ConnectionPool::waitPoll() {
   }
 
   err_code_t ret_code = RET_OK;
+
+  double beforeLoop = utility::getCPUTime();
+
+  int cnt = 0;
   while (m_nActiveConn) {
+    ++cnt;
     int rv = poll(pollfds, n_fds, s_pollTimeout);
     if (rv == -1) {
       markDeadAll(pollfds, keywords::kPOLL_ERROR, 0);
@@ -482,6 +487,13 @@ next_fd: {}
       } // end for
     }
   }
+
+  double afterLoop = utility::getCPUTime();
+  double timeElapse = afterLoop - beforeLoop;
+  if (timeElapse > 1.0) {
+    log_warn("probe timeout (%.3lf). m_nActiveConn: %u, cnt: %d", timeElapse, m_nActiveConn, cnt);
+  }
+
   return ret_code;
 }
 
