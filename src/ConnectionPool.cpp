@@ -205,6 +205,7 @@ void ConnectionPool::dispatchRetrieval(op_code_t op, const char* const* keys,
     }
     conn->takeBuffer(kSPACE, 1);
     conn->takeBuffer(key, len);
+    conn->addRequestKey(key, len);
   }
   for (idx = 0; idx < m_nConns; idx++) {
     Connection* conn = m_conns + idx;
