@@ -25,10 +25,10 @@ from ._client import (
 )
 
 __VERSION__ = '0.5.2'
-__version__ = "v0.5.2-4-gfe73ca2"
+__version__ = "v0.5.2-5-g4bd3d3c"
 __author__ = "mckelvin"
 __email__ = "mckelvin@users.noreply.github.com"
-__date__ = "Tue May 12 13:56:18 2015 +0800"
+__date__ = "Tue May 12 15:12:36 2015 +0800"
 
 
 class Client(PyClient):

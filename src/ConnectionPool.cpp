@@ -400,6 +400,16 @@ err_code_t ConnectionPool::waitPoll() {
   int recv_count = 0;
 
   while (m_nActiveConn) {
+    double afterLoop = utility::getCPUTime();
+    double timeElapse = afterLoop - beforeLoop;
+    if (timeElapse > 1.0) {
+      log_warn(
+          "probe timeout (%.6lf s). m_nActiveConn: %u, poll_count: %d, "
+          "send_count: %d, recv_count: %d",
+          timeElapse, m_nActiveConn, poll_count, send_count, recv_count
+      );
+    }
+
     ++poll_count;
     int rv = poll(pollfds, n_fds, s_pollTimeout);
     if (rv == -1) {
