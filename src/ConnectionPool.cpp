@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <list>
+#include <queue>
 #include <vector>
 #include <algorithm>
 
@@ -394,9 +395,12 @@ err_code_t ConnectionPool::waitPoll() {
 
   double beforeLoop = utility::getCPUTime();
 
-  int cnt = 0;
+  int poll_count = 0;
+  int send_count = 0;
+  int recv_count = 0;
+
   while (m_nActiveConn) {
-    ++cnt;
+    ++poll_count;
     int rv = poll(pollfds, n_fds, s_pollTimeout);
     if (rv == -1) {
       markDeadAll(pollfds, keywords::kPOLL_ERROR, 0);
@@ -425,6 +429,7 @@ err_code_t ConnectionPool::waitPoll() {
         if (pollfd_ptr->revents & POLLOUT) {
           // POLLOUT send
           ssize_t nToSend = conn->send();
+          ++send_count;
           if (nToSend == -1) {
             markDeadConn(conn, keywords::kSEND_ERROR, pollfd_ptr, 0);
             ret_code = RET_SEND_ERR;
@@ -449,6 +454,7 @@ err_code_t ConnectionPool::waitPoll() {
         if (pollfd_ptr->revents & POLLIN) {
           // POLLIN recv
           ssize_t nRecv = conn->recv();
+          ++recv_count;
           if (nRecv == -1 || nRecv == 0) {
             markDeadConn(conn, keywords::kRECV_ERROR, pollfd_ptr, 0);
             ret_code = RET_RECV_ERR;
@@ -491,7 +497,20 @@ next_fd: {}
   double afterLoop = utility::getCPUTime();
   double timeElapse = afterLoop - beforeLoop;
   if (timeElapse > 1.0) {
-    log_warn("probe timeout (%.3lf). m_nActiveConn: %u, cnt: %d", timeElapse, m_nActiveConn, cnt);
+    log_warn(
+      "probe timeout (%.3lf). m_nActiveConn: %u, poll_count: %d, send_count: %d, recv_count: %d",
+      timeElapse, m_nActiveConn, poll_count, send_count, recv_count
+    );
+    for (std::vector<Connection*>::iterator it = m_activeConns.begin();
+         it != m_activeConns.end(); ++it) {
+      Connection* conn = *it;
+      std::queue<struct iovec>* q = conn->getRequestKeys();
+      if (!q->empty()) {
+        log_warn("probe %s: first request key: %.*s", conn->name(),
+                 static_cast<int>(q->front().iov_len),
+                 static_cast<char*>(q->front().iov_base));
+      }
+    }
   }
 
   return ret_code;
