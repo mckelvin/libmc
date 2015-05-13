@@ -178,7 +178,17 @@ void ConnectionPool::dispatchStorage(op_code_t op,
 void ConnectionPool::dispatchRetrieval(op_code_t op, const char* const* keys,
                                   const size_t* keyLens, size_t n_keys) {
   size_t i = 0, idx = 0;
+
+  double beforeLoop = utility::getCPUTime();
   for (; i < n_keys; ++i) {
+    double inLoop = utility::getCPUTime();
+    if (inLoop - beforeLoop > 1.0) {
+      log_warn(
+        "probe dispatchRetrieval timeout %.6f s, i: %zu, keys[i - 1]: %.*s",
+        inLoop - beforeLoop, i, static_cast<int>(keyLens[i - 1]), keys[i - 1]
+      );
+    }
+
     const char* key = keys[i];
     const size_t len = keyLens[i];
     if (!utility::isValidKey(key, len)) {
@@ -206,6 +216,14 @@ void ConnectionPool::dispatchRetrieval(op_code_t op, const char* const* keys,
     conn->takeBuffer(key, len);
     conn->addRequestKey(key, len);
   }
+  double afterLoop = utility::getCPUTime();
+  if (afterLoop - beforeLoop > 1.0) {
+    log_warn(
+      "probe dispatchRetrieval timeout %.6f s",
+      (afterLoop - beforeLoop)
+    );
+  }
+
   for (idx = 0; idx < m_nConns; idx++) {
     Connection* conn = m_conns + idx;
     if (conn->m_counter > 0) {
@@ -408,6 +426,19 @@ err_code_t ConnectionPool::waitPoll() {
 
   while (m_nActiveConn) {
     t0 = utility::getCPUTime();
+    if (t0 - beforeLoop > 1.0) {
+      log_warn(
+          "probe time_elasped (%.6f s). n_conns: %zu, "
+          "poll_count: %d, send_count: %d, recv_count: %d, "
+          "max_poll_elapsed: %.6f, max_send_elasped: %.6f, max_recv_elasped: %.6f, "
+          "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f",
+          t0 - beforeLoop, m_activeConns.size(),
+          poll_count, send_count, recv_count,
+          maxPollElapse, maxSendElapse, maxRecvElapse,
+          totalPollElapse, totalSendElapse, totalRecvElapse
+      );
+    }
+
     int rv = poll(pollfds, n_fds, s_pollTimeout);
     ++poll_count;
     t1 = utility::getCPUTime();
