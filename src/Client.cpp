@@ -44,16 +44,31 @@ err_code_t Client::get(const char* const* keys, const size_t* keyLens, size_t nK
   double t0 = utility::getCPUTime();
   dispatchRetrieval(GET_OP, keys, keyLens, nKeys);
   double t1 = utility::getCPUTime();
+
+  if (t1 - t0 > 1.0) {
+    log_warn(
+        "slow get %.*s (%zu). dispatchRetrieval: %.6f s",
+        static_cast<int>(keyLens[0]), keys[0], nKeys, t1 - t0
+    );
+  }
+
   err_code_t rv = waitPoll();
   double t2 = utility::getCPUTime();
+
+  if (t2 - t1 > 1.0) {
+    log_warn(
+        "slow get %.*s (%zu). waitPoll: %.6f s",
+        static_cast<int>(keyLens[0]), keys[0], nKeys, t2 - t1
+    );
+  }
+
   collectRetrievalResult(results, nResults);
   double t3 = utility::getCPUTime();
-  if (t3 - t0 > 1.0) {
+
+  if (t3 - t2 > 1.0) {
     log_warn(
-        "slow get %.*s (%zu). "
-        "dispatchRetrieval: %.6f s, waitPoll: %.6f, collectRetrievalResult: %.6f",
-        static_cast<int>(keyLens[0]), keys[0], nKeys,
-        t1 - t0, t2 - t1, t3 - t2
+        "slow get %.*s (%zu). collectRetrievalResult: %.6f s",
+        static_cast<int>(keyLens[0]), keys[0], nKeys, t3 - t2
     );
   }
   return rv;
