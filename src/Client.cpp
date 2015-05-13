@@ -4,8 +4,9 @@
 #include "Common.h"
 #include "Client.h"
 #include "Keywords.h"
+#include "Utility.h"
 
-namespace douban{
+namespace douban {
 namespace mc {
 
 using types::retrieval_result_t;
@@ -40,9 +41,21 @@ void Client::config(config_options_t opt, int val) {
 
 err_code_t Client::get(const char* const* keys, const size_t* keyLens, size_t nKeys,
                  retrieval_result_t*** results, size_t* nResults) {
+  double t0 = utility::getCPUTime();
   dispatchRetrieval(GET_OP, keys, keyLens, nKeys);
+  double t1 = utility::getCPUTime();
   err_code_t rv = waitPoll();
+  double t2 = utility::getCPUTime();
   collectRetrievalResult(results, nResults);
+  double t3 = utility::getCPUTime();
+  if (t3 - t0 > 1.0) {
+    log_warn(
+        "slow get %.*s (%zu). "
+        "dispatchRetrieval: %.6f s, waitPoll: %.6f, collectRetrievalResult: %.6f",
+        static_cast<int>(keyLens[0]), keys[0], nKeys,
+        t1 - t0, t2 - t1, t3 - t2
+    );
+  }
   return rv;
 }
 

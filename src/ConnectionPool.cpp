@@ -189,7 +189,6 @@ void ConnectionPool::dispatchRetrieval(op_code_t op, const char* const* keys,
     if (conn == NULL) {
       continue;
     }
-    // debug("hash %s => %d (%p)", key, idx % m_nConns, conn);
     if (++conn->m_counter == 1) {
       switch (op) {
         case GET_OP:
@@ -395,24 +394,27 @@ err_code_t ConnectionPool::waitPoll() {
   err_code_t ret_code = RET_OK;
 
   double beforeLoop = utility::getCPUTime();
-
+  double t1 = 0;
+  double t0 = 0;
+  double maxPollElapse = 0.0;
+  double maxSendElapse = 0.0;
+  double maxRecvElapse = 0.0;
+  double totalPollElapse = 0.0;
+  double totalSendElapse = 0.0;
+  double totalRecvElapse = 0.0;
   int poll_count = 0;
   int send_count = 0;
   int recv_count = 0;
 
   while (m_nActiveConn) {
-    double afterLoop = utility::getCPUTime();
-    double timeElapse = afterLoop - beforeLoop;
-    if (timeElapse > 1.0) {
-      log_warn(
-          "probe timeout (%.6lf s). m_nActiveConn: %u, poll_count: %d, "
-          "send_count: %d, recv_count: %d",
-          timeElapse, m_nActiveConn, poll_count, send_count, recv_count
-      );
-    }
-
-    ++poll_count;
+    t0 = utility::getCPUTime();
     int rv = poll(pollfds, n_fds, s_pollTimeout);
+    ++poll_count;
+    t1 = utility::getCPUTime();
+    double pollElapse = t1 - t0;
+    maxPollElapse = std::max(pollElapse, maxPollElapse);
+    totalPollElapse += pollElapse;
+
     if (rv == -1) {
       markDeadAll(pollfds, keywords::kPOLL_ERROR, 0);
       ret_code = RET_POLL_ERR;
@@ -439,7 +441,12 @@ err_code_t ConnectionPool::waitPoll() {
         // send
         if (pollfd_ptr->revents & POLLOUT) {
           // POLLOUT send
+          t0 = utility::getCPUTime();
           ssize_t nToSend = conn->send();
+          t1 = utility::getCPUTime();
+          double sendElapse = t1 - t0;
+          maxSendElapse = std::max(sendElapse, maxSendElapse);
+          totalSendElapse += sendElapse;
           ++send_count;
           if (nToSend == -1) {
             markDeadConn(conn, keywords::kSEND_ERROR, pollfd_ptr, 0);
@@ -464,7 +471,12 @@ err_code_t ConnectionPool::waitPoll() {
         // recv
         if (pollfd_ptr->revents & POLLIN) {
           // POLLIN recv
+          t0 = utility::getCPUTime();
           ssize_t nRecv = conn->recv();
+          t1 = utility::getCPUTime();
+          double recvElapse = t1 - t0;
+          maxRecvElapse = std::max(recvElapse, maxRecvElapse);
+          totalRecvElapse += recvElapse;
           ++recv_count;
           if (nRecv == -1 || nRecv == 0) {
             markDeadConn(conn, keywords::kRECV_ERROR, pollfd_ptr, 0);
@@ -509,17 +521,27 @@ next_fd: {}
   double timeElapse = afterLoop - beforeLoop;
   if (timeElapse > 1.0) {
     log_warn(
-      "probe timeout (%.3lf). m_nActiveConn: %u, poll_count: %d, send_count: %d, recv_count: %d",
-      timeElapse, m_nActiveConn, poll_count, send_count, recv_count
+      "probe timeout (%.6f s). n_conns: %zu, "
+      "poll_count: %d, send_count: %d, recv_count: %d, "
+      "max_poll_elapsed: %.6f, max_send_elasped: %.6f, max_recv_elasped: %.6f, "
+      "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f",
+      timeElapse, m_activeConns.size(),
+      poll_count, send_count, recv_count,
+      maxPollElapse, maxSendElapse, maxRecvElapse,
+      totalPollElapse, totalSendElapse, totalRecvElapse
     );
     for (std::vector<Connection*>::iterator it = m_activeConns.begin();
          it != m_activeConns.end(); ++it) {
       Connection* conn = *it;
       std::queue<struct iovec>* q = conn->getRequestKeys();
       if (!q->empty()) {
-        log_warn("probe %s: first request key: %.*s", conn->name(),
-                 static_cast<int>(q->front().iov_len),
-                 static_cast<char*>(q->front().iov_base));
+        log_warn(
+            "probe %s: first request key: %.*s, total: %zu",
+            conn->name(),
+            static_cast<int>(q->front().iov_len),
+            static_cast<char*>(q->front().iov_base),
+            q->size()
+        );
       }
     }
   }
