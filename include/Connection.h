@@ -54,6 +54,7 @@ class Connection {
     static void setRetryTimeout(int timeout);
     static const int getRetryTimeout();
     static void setConnectTimeout(int timeout);
+    static int getConnectTimeout();
 
     size_t m_counter;
 

@@ -195,7 +195,17 @@ void ConnectionPool::dispatchRetrieval(op_code_t op, const char* const* keys,
       m_nInvalidKey += 1;
       continue;
     }
+    double t0 = utility::getCPUTime();
     Connection* conn = m_connSelector.getConn(key, len);
+    double t1 = utility::getCPUTime();
+    if (t1 - t0 > 0.1) {
+      char* conn_nm = NULL;
+      if (conn != NULL) {
+        conn_nm = const_cast<char*>(conn->name());
+      }
+      log_warn("probe getConn timeout. key: %s, srv: %s, to: %.6f, conn_poll_to: %d",
+               key, conn_nm, t1 - t0, Connection::getConnectTimeout());
+    }
     if (conn == NULL) {
       continue;
     }
@@ -431,11 +441,13 @@ err_code_t ConnectionPool::waitPoll() {
           "probe time_elasped (%.6f s). n_conns: %zu, "
           "poll_count: %d, send_count: %d, recv_count: %d, "
           "max_poll_elapsed: %.6f, max_send_elasped: %.6f, max_recv_elasped: %.6f, "
-          "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f",
+          "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f, "
+          "s_pollTimeout: %d",
           t0 - beforeLoop, m_activeConns.size(),
           poll_count, send_count, recv_count,
           maxPollElapse, maxSendElapse, maxRecvElapse,
-          totalPollElapse, totalSendElapse, totalRecvElapse
+          totalPollElapse, totalSendElapse, totalRecvElapse,
+          s_pollTimeout
       );
     }
 
@@ -443,6 +455,7 @@ err_code_t ConnectionPool::waitPoll() {
     ++poll_count;
     t1 = utility::getCPUTime();
     double pollElapse = t1 - t0;
+    ASSERT(pollElapse * 1000 < s_pollTimeout * 1.5);
     maxPollElapse = std::max(pollElapse, maxPollElapse);
     totalPollElapse += pollElapse;
 
@@ -452,11 +465,13 @@ err_code_t ConnectionPool::waitPoll() {
           "probe poll error (%.6f s). n_conns: %zu, "
           "poll_count: %d, send_count: %d, recv_count: %d, "
           "max_poll_elapsed: %.6f, max_send_elasped: %.6f, max_recv_elasped: %.6f, "
-          "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f",
+          "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f "
+          "s_pollTimeout: %d",
           t1 - beforeLoop, m_activeConns.size(),
           poll_count, send_count, recv_count,
           maxPollElapse, maxSendElapse, maxRecvElapse,
-          totalPollElapse, totalSendElapse, totalRecvElapse
+          totalPollElapse, totalSendElapse, totalRecvElapse,
+          s_pollTimeout
         );
       }
       markDeadAll(pollfds, keywords::kPOLL_ERROR, 0);
@@ -567,11 +582,13 @@ next_fd: {}
       "probe timeout (%.6f s). n_conns: %zu, "
       "poll_count: %d, send_count: %d, recv_count: %d, "
       "max_poll_elapsed: %.6f, max_send_elasped: %.6f, max_recv_elasped: %.6f, "
-      "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f",
+      "total_poll_elapsed: %.6f, total_send_elasped: %.6f, total_recv_elasped: %.6f, "
+      "s_pollTimeout: %d",
       timeElapse, m_activeConns.size(),
       poll_count, send_count, recv_count,
       maxPollElapse, maxSendElapse, maxRecvElapse,
-      totalPollElapse, totalSendElapse, totalRecvElapse
+      totalPollElapse, totalSendElapse, totalRecvElapse,
+      s_pollTimeout
     );
     for (std::vector<Connection*>::iterator it = m_activeConns.begin();
          it != m_activeConns.end(); ++it) {
@@ -579,8 +596,9 @@ next_fd: {}
       std::queue<struct iovec>* q = conn->getRequestKeys();
       if (!q->empty()) {
         log_warn(
-            "probe %s: first request key: %.*s, total: %zu",
+            "probe key %s :(%.6f s): first request key: %.*s, total: %zu",
             conn->name(),
+            timeElapse,
             static_cast<int>(q->front().iov_len),
             static_cast<char*>(q->front().iov_base),
             q->size()

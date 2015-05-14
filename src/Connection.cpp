@@ -309,5 +309,10 @@ void Connection::setConnectTimeout(int timeout) {
   s_connectTimeout = timeout;
 }
 
+
+int Connection::getConnectTimeout() {
+  return s_connectTimeout;
+}
+
 } // namespace mc
 } // namespace douban
