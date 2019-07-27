@@ -142,6 +142,11 @@ err_code_t client_stats(void* client, broadcast_result_t** results, size_t* n_se
   return c->stats(results, n_servers);
 }
 
+err_code_t client_flush_all(void* client, broadcast_result_t** results, size_t* n_servers) {
+  douban::mc::Client* c = static_cast<Client*>(client);
+  return c->flushAll(results, n_servers);
+}
+
 err_code_t client_quit(void* client) {
   douban::mc::Client* c = static_cast<Client*>(client);
   return c->quit();

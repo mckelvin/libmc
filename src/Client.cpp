@@ -125,10 +125,10 @@ err_code_t Client::_delete(const char* const* keys, const size_t* keyLens,
 }
 
 
-void Client::collectBroadcastResult(broadcast_result_t** results, size_t* nHosts) {
+void Client::collectBroadcastResult(broadcast_result_t** results, size_t* nHosts, bool isFlushAll) {
   assert(m_outBroadcastResultPtrs.empty());
   *nHosts = m_nConns;
-  ConnectionPool::collectBroadcastResult(m_outBroadcastResultPtrs);
+  ConnectionPool::collectBroadcastResult(m_outBroadcastResultPtrs, isFlushAll);
   *results = &m_outBroadcastResultPtrs.front();
 }
 
@@ -163,6 +163,13 @@ err_code_t Client::stats(broadcast_result_t** results, size_t* nHosts) {
   broadcastCommand(keywords::kSTATS, 5);
   err_code_t rv = waitPoll();
   collectBroadcastResult(results, nHosts);
+  return rv;
+}
+
+err_code_t Client::flushAll(broadcast_result_t** results, size_t* nHosts) {
+  broadcastCommand(keywords::kFLUSHALL, 9);
+  err_code_t rv = waitPoll();
+  collectBroadcastResult(results, nHosts, true);
   return rv;
 }
 

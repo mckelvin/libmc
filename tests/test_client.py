@@ -252,6 +252,20 @@ class SingleServerCase(unittest.TestCase):
         # back to life immediately
         assert self.mc.get('all_is_well') == 'bingo'
 
+    def test_flush_all(self):
+        keys = ["flush_all_check_%s" % i for i in range(1000)]
+        value = "testing_flush_all"
+        dict_to_set = {
+            key: value
+            for key in keys
+        }
+        self.mc.set_multi(dict_to_set)
+        retrieved_dct = self.mc.get_multi(keys)
+        assert retrieved_dct == dict_to_set
+        rtn = self.mc.flush_all()
+        assert isinstance(rtn, list)
+        assert rtn == self.mc.servers
+        assert {} == self.mc.get_multi(keys)
 
 class TwoServersCase(SingleServerCase):
 

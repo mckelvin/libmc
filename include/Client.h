@@ -50,6 +50,7 @@ DECL_RETRIEVAL_CMD(gets)
   err_code_t version(broadcast_result_t** results, size_t* nHosts);
   err_code_t quit();
   err_code_t stats(broadcast_result_t** results, size_t* nHosts);
+  err_code_t flushAll(broadcast_result_t** results, size_t* nHosts);
 
   // touch
   err_code_t touch(const char* const* keys, const size_t* keyLens,
@@ -70,7 +71,7 @@ DECL_RETRIEVAL_CMD(gets)
  protected:
   void collectRetrievalResult(retrieval_result_t*** results, size_t* nResults);
   void collectMessageResult(message_result_t*** results, size_t* nResults);
-  void collectBroadcastResult(broadcast_result_t** results, size_t* nHosts);
+  void collectBroadcastResult(broadcast_result_t** results, size_t* nHosts, bool isFlushAll=false);
   void collectUnsignedResult(unsigned_result_t** results, size_t* nResults);
 
   std::vector<retrieval_result_t*> m_outRetrievalResultPtrs;

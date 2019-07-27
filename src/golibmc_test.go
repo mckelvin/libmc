@@ -907,3 +907,48 @@ func BenchmarkSetAndGet(b *testing.B) {
 		mc.Get(key)
 	}
 }
+
+func TestFlushAll(t *testing.T) {
+	// for _, nServers := range []int{1, 2, 10} {
+	for _, nServers := range []int{1} {
+		mc := newSimplePrefixClient(nServers, "")
+		testFlushAll(mc, t)
+	}
+}
+
+func testFlushAll(mc *Client, t *testing.T) {
+	nItems := 10
+	items := make([]*Item, nItems)
+	keys := make([]string, nItems)
+
+	for i := 0; i < nItems; i++ {
+		key := fmt.Sprintf("test_flush_key_%d", i)
+		value := fmt.Sprintf("v%d", i)
+		items[i] = &Item{
+			Key:        key,
+			Value:      []byte(value),
+			Flags:      0,
+			Expiration: 0,
+		}
+		keys[i] = key
+	}
+
+	mc.SetMulti(items)
+	itemsGot, err := mc.GetMulti(keys)
+	if err != nil || len(itemsGot) != nItems {
+		t.Error(err)
+	}
+	fmt.Print(mc.Version())
+
+	err = nil
+	flushedHosts, err := mc.FlushAll()
+
+	if err != nil || len(flushedHosts) != len(mc.servers) {
+		t.Error(err)
+	}
+
+	itemsGot, err = mc.GetMulti(keys)
+	if err != ErrCacheMiss || len(itemsGot) != 0 {
+		t.Error(err)
+	}
+}
