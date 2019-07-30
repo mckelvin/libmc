@@ -1391,7 +1391,19 @@ func (client *Client) Stats() (map[string](map[string]string), error) {
 	return rv, nil
 }
 
-//  FlushAll will flush all memcached servers
+// Enable/Disable the flush_all feature
+func (client *Client) ToggleFlushAllFeature(enabled bool) {
+	client.lk.Lock()
+	for i := 0; i < len(client.freeConns); i++ {
+		cn := client.freeConns[i]
+		C.client_toggle_flush_all_feature(cn._imp, C.bool(enabled))
+	}
+	client.lk.Unlock()
+}
+
+// FlushAll will flush all memcached servers
+// You must call  ToggleFlushAllFeature(True) first to
+// enable this feature.
 func (client *Client) FlushAll() ([]string, error) {
 	var rst *C.broadcast_result_t
 	var n C.size_t

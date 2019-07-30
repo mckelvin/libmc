@@ -66,6 +66,9 @@ DECL_RETRIEVAL_CMD(gets)
            const bool noreply,
            unsigned_result_t** result, size_t* nResults);
 
+  inline void toggleFlushAllFeature(bool enabled) {
+    m_flushAllEnabled = enabled;
+  }
   void _sleep(uint32_t seconds); // check GIL in Python
 
  protected:
@@ -78,6 +81,8 @@ DECL_RETRIEVAL_CMD(gets)
   std::vector<message_result_t*> m_outMessageResultPtrs;
   std::vector<broadcast_result_t> m_outBroadcastResultPtrs;
   std::vector<unsigned_result_t*> m_outUnsignedResultPtrs;
+
+  bool m_flushAllEnabled;
 };
 
 } // namespace mc

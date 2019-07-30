@@ -8,7 +8,7 @@
 namespace douban {
 namespace mc {
 
-Client::Client() {
+Client::Client(): m_flushAllEnabled(false) {
 }
 
 
@@ -167,6 +167,12 @@ err_code_t Client::stats(broadcast_result_t** results, size_t* nHosts) {
 }
 
 err_code_t Client::flushAll(broadcast_result_t** results, size_t* nHosts) {
+  if (!m_flushAllEnabled) {
+    *results = NULL;
+    *nHosts = 0;
+    return RET_PROGRAMMING_ERR;
+  }
+
   broadcastCommand(keywords::kFLUSHALL, 9);
   err_code_t rv = waitPoll();
   collectBroadcastResult(results, nHosts, true);

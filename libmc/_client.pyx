@@ -192,6 +192,7 @@ cdef extern from "Client.h" namespace "douban::mc":
         err_code_t quit() nogil
         err_code_t stats(broadcast_result_t** results, size_t* nHosts) nogil
         err_code_t flushAll(broadcast_result_t** results, size_t* nHosts) nogil
+        void toggleFlushAllFeature(bool_t enabled)
         void destroyBroadcastResult() nogil
 
         err_code_t incr(
@@ -955,6 +956,9 @@ cdef class PyClient:
             self._imp.destroyBroadcastResult()
         return rv
 
+    def toggle_flush_all_feature(self, enabled):
+        self._imp.toggleFlushAllFeature(enabled)
+
     def flush_all(self):
         self._record_thread_ident()
         cdef broadcast_result_t* rst = NULL
@@ -969,6 +973,11 @@ cdef class PyClient:
 
         with nogil:
             self._imp.destroyBroadcastResult()
+        if self.last_error == RET_PROGRAMMING_ERR:
+            raise RuntimeError(
+                "Please call toggle_flush_all_feature(true) first "
+                "to enable the flush_all feature."
+            )
         return rv
 
     def quit(self):

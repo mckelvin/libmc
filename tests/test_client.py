@@ -2,6 +2,7 @@
 
 import sys
 import time
+import pytest
 import unittest
 from libmc import (
     Client, encode_value, decode_value,
@@ -262,10 +263,18 @@ class SingleServerCase(unittest.TestCase):
         self.mc.set_multi(dict_to_set)
         retrieved_dct = self.mc.get_multi(keys)
         assert retrieved_dct == dict_to_set
+
+        with pytest.raises(RuntimeError, match=r".*toggle.*"):
+            rtn = self.mc.flush_all()
+        self.mc.toggle_flush_all_feature(True)
         rtn = self.mc.flush_all()
         assert isinstance(rtn, list)
         assert rtn == self.mc.servers
         assert {} == self.mc.get_multi(keys)
+
+        self.mc.toggle_flush_all_feature(False)
+        with pytest.raises(RuntimeError, match=r".*toggle.*"):
+            rtn = self.mc.flush_all()
 
 class TwoServersCase(SingleServerCase):
 
